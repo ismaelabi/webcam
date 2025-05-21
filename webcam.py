@@ -136,7 +136,7 @@ def handle_camera_actions(pic_clicks, rec_clicks, selected_camera):
 
 if __name__ == '__main__':
     try:
-        app.run(debug=True)
+        app.run(debug=False)
     finally:
         camera.release()
         if video_writer:
