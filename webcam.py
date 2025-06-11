@@ -1,5 +1,5 @@
 import dash
-from dash import html, Output, Input, dcc
+from dash import html, Output, Input, dcc, ctx
 import cv2
 import threading
 import time
@@ -18,6 +18,9 @@ frame_height = int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
 is_recording = False
 video_writer = None
 lock = threading.Lock()
+
+stopwatch_running = False
+elapsed_seconds = 0
 
 # MJPEG stream generator
 def generate_frames():
@@ -48,6 +51,14 @@ def video_feed():
 # Dash layout
 app.layout = html.Div(style={'textAlign': 'center'}, children=[
     html.H2("Camera Interface"),
+
+    html.Div([
+        html.Div(id='stopwatch-display', children="00:00:00"),
+        html.Button("Start", id='start-button', n_clicks=0),
+        html.Button("Stop", id='stop-button', n_clicks=0),
+        html.Button("Reset", id='reset-button', n_clicks=0),
+        dcc.Interval(id='interval', interval=1000, n_intervals=0, disabled=True),
+    ], style={'textAlign': 'center', 'margin': '20px'}),
 
     html.Div([
         html.Label("Select Camera:"),
@@ -133,6 +144,42 @@ def handle_camera_actions(pic_clicks, rec_clicks, selected_camera):
     return dash.no_update
 
 
+@app.callback(
+    Output('interval', 'disabled'),
+    [Input('start-button', 'n_clicks'),
+     Input('stop-button', 'n_clicks'),
+     Input('reset-button', 'n_clicks')]
+)
+def control_stopwatch(start, stop, reset):
+    global stopwatch_running, elapsed_seconds
+
+    triggered = ctx.triggered_id
+
+    if triggered == 'start-button':
+        stopwatch_running = True
+        return False  # Enable interval
+    elif triggered == 'stop-button':
+        stopwatch_running = False
+        return True   # Disable interval
+    elif triggered == 'reset-button':
+        stopwatch_running = False
+        elapsed_seconds = 0
+        return True   # Disable interval
+
+    return True  # Default state
+
+@app.callback(
+    Output('stopwatch-display', 'children'),
+    Input('interval', 'n_intervals')
+)
+def update_stopwatch(n):
+    global elapsed_seconds, stopwatch_running
+    if stopwatch_running:
+        elapsed_seconds += 1
+
+    mins = elapsed_seconds // 60
+    secs = elapsed_seconds % 60
+    return f"{mins:02d}:{secs:02d}"
 
 if __name__ == '__main__':
     try:
